@@ -1,0 +1,51 @@
+{
+    "name": "gaconnector/server-side-tracking",
+    "description": "GA Connector server-side tracking library for PHP: render the tracker bootstrap and proxy tracking calls through your own domain.",
+    "type": "library",
+    "keywords": [
+        "gaconnector",
+        "ga",
+        "google-analytics",
+        "crm",
+        "tracking",
+        "analytics",
+        "attribution",
+        "server-side"
+    ],
+    "homepage": "https://gaconnector.com",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "GA Connector",
+            "homepage": "https://gaconnector.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-spl": "*",
+        "ext-json": "*",
+        "ext-filter": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "suggest": {
+        "ext-curl": "Preferred HTTP transport; the library falls back to raw sockets when cURL is unavailable."
+    },
+    "autoload": {
+        "psr-4": {
+            "GaConnector\\Tracking\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "GaConnector\\Tracking\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

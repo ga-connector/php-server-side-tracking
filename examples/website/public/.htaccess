@@ -1,0 +1,20 @@
+# Front-controller rewrites for the GA Connector demo site (Apache).
+#
+# Every request that is not an existing file or directory is routed to
+# index.php, which delegates to the shared front controller. This is what
+# makes the /gac/js, /gac/events/pageview, and /gac/events/identify proxy
+# routes resolve — the original path is preserved in REQUEST_URI so the
+# library can match it.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Serve real files/directories directly (none ship with the demo, but this
+    # keeps the pattern correct if you add CSS/images later).
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Everything else goes to the front controller.
+    RewriteRule ^ index.php [L]
+</IfModule>

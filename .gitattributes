@@ -1,0 +1,8 @@
+# Keep the Composer dist tarball lean: exclude dev-only files from
+# `composer install`ed copies. Examples and the README stay in because the
+# docs reference them.
+/tests export-ignore
+/phpunit.xml.dist export-ignore
+/.github export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  phpunit:
+    name: PHPUnit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test the lowest supported version and a current one so the
+        # PHP 7.4 compatibility can't silently regress.
+        php: ['7.4', '8.3']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run tests
+        run: composer test
+
+  tag:
+    name: Tag
+    needs: phpunit
+    runs-on: ubuntu-latest
+    # Only tag from the default branch, and only on push (never PRs).
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    concurrency:
+      group: tag-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: write        # push the version tag
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need full history + existing tags to compute the next version.
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Only tag when the commits since the last tag actually warrant a
+          # bump (feat/fix/BREAKING). Chore/docs/etc. produce no new tag.
+          default_bump: false
