@@ -1,0 +1,23 @@
+name: Packagist
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: Update Packagist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Packagist
+        run: |
+          curl -sSf -XPOST \
+            -H 'Content-Type:application/json' \
+            -H "Authorization: Bearer ${PACKAGIST_USERNAME}:${PACKAGIST_TOKEN}" \
+            'https://packagist.org/api/update-package' \
+            -d "{\"repository\":\"${REPOSITORY_URL}\"}"
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
