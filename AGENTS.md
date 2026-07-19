@@ -84,10 +84,15 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 
 ### Commit messages
 
-- **Every commit message must start with `feat:` or `fix:`.** Releases are driven by
-  `mathieudutour/github-tag-action` with `default_bump: false`, so only `feat:` (minor bump)
-  and `fix:` (patch bump) commits produce a new tag and GitHub Release — anything else ships
-  no version. Use `feat!:`/`fix!:` (or a `BREAKING CHANGE:` footer) for a major bump.
+- **Every commit message must follow [Conventional Commits](https://www.conventionalcommits.org/):**
+  `type(optional scope): description` (e.g. `feat: add socket transport`,
+  `fix(proxy): handle empty upstream body`, `docs: clarify release flow`). Common types are
+  `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `perf`, `build`, `ci`.
+- Releases are driven by `mathieudutour/github-tag-action` with `default_bump: false`, so only
+  `feat:` (minor bump) and `fix:` (patch bump) commits cut a new tag + GitHub Release — every
+  other type ships no version. Use a `!` (e.g. `feat!:`) or a `BREAKING CHANGE:` footer for a
+  major bump. Pick the type that reflects the change; don't mislabel a chore as `feat`/`fix`
+  just to force a release.
 
 ### Style / language level
 
@@ -130,17 +135,17 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 
 ## CI / releases
 
-- `.github/workflows/tests.yml` (`CI`) runs the suite on PHP **7.4** and **8.3** so the
+- `.github/workflows/ci.yml` (`CI`) runs the suite on PHP **7.4** and **8.3** so the
   minimum-version compatibility can't silently regress.
 - After the matrix passes on a push to `main`/`master`, the `tag` job runs
   `mathieudutour/github-tag-action@v6.2` to compute the next semver from
   [Conventional Commits](https://www.conventionalcommits.org/) and push a `vX.Y.Z` tag
   (`default_bump: false`, so chore/docs commits produce no tag). When a new tag is
   produced it then creates a matching GitHub Release (`softprops/action-gh-release`) whose
-  body is the auto-generated changelog. There is no `version` field in `composer.json` —
-  Composer/Packagist derive the version from the git tag.
-- `.github/workflows/packagist.yml` pings the Packagist update API on each push to
-  `main`/`master` (and via manual `workflow_dispatch`) so the package re-crawls the new tag.
+  body is the auto-generated changelog, and finally pings the Packagist update API (using
+  the `PACKAGIST_USERNAME` / `PACKAGIST_TOKEN` secrets) so the package re-crawls the
+  just-pushed tag. There is no `version` field in `composer.json` — Composer/Packagist
+  derive the version from the git tag.
 
 ## Gotchas
 

@@ -184,7 +184,7 @@ composer test      # runs vendor/bin/phpunit
 ```
 
 PHPUnit is pinned to `^9.6`, the newest line that still runs on the PHP 7.4
-floor as well as current PHP. CI (`.github/workflows/tests.yml`) runs the suite
+floor as well as current PHP. CI (`.github/workflows/ci.yml`) runs the suite
 on PHP 7.4 and 8.3 so the minimum-version compatibility can't silently
 regress.
 
@@ -194,9 +194,9 @@ Versioning is automated with
 [github-tag-action](https://github.com/mathieudutour/github-tag-action). On every
 push to `main`/`master`, once the PHP test matrix passes, the `tag` job inspects
 the commits since the last tag, derives the next
-[semantic version](https://semver.org/), and creates + pushes the git tag
-(`vX.Y.Z`). No GitHub Release object is created — just the tag — and no manual
-version bumping or tagging.
+[semantic version](https://semver.org/), pushes the git tag (`vX.Y.Z`), creates a
+matching GitHub Release with the auto-generated changelog, and pings Packagist to
+re-crawl the new tag — no manual version bumping, tagging, or release steps.
 
 Because versions are derived from commit messages, use
 [Conventional Commits](https://www.conventionalcommits.org/):
@@ -209,6 +209,6 @@ Because versions are derived from commit messages, use
 | `chore:` / `docs:` / `test:` / etc. | no release       |
 
 `default_bump: false` means a push with no `feat`/`fix`/breaking commit produces
-no tag. The workflow authenticates with the built-in `GITHUB_TOKEN` (needs only
-`contents: write`). If the package is registered on Packagist with the GitHub
-webhook, the new tag is picked up and published automatically.
+no tag. The tag/release steps authenticate with the built-in `GITHUB_TOKEN` (needs
+only `contents: write`); the Packagist ping uses the `PACKAGIST_USERNAME` /
+`PACKAGIST_TOKEN` repository secrets.
