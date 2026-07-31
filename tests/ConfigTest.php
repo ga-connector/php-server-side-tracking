@@ -23,6 +23,14 @@ final class ConfigTest extends TestCase
 
         self::assertSame(Config::DEFAULT_API_BASE_URL, $config->apiBaseUrl);
         self::assertSame('auto', $config->mode);
+        self::assertFalse($config->inlineContext);
+    }
+
+    public function testInlineContextIsOptIn(): void
+    {
+        $config = Config::fromArray(['apiKey' => 'k', 'basePath' => '/gac', 'inlineContext' => true]);
+
+        self::assertTrue($config->inlineContext);
     }
 
     public function testApiUrlJoinsBaseAndPath(): void

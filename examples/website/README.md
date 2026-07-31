@@ -3,8 +3,10 @@
 A complete, runnable multi-page site that uses the GA Connector server-side
 tracking PHP library end-to-end. It shows both library capabilities:
 
-- **Rendering** the `__gacContext` / `__gacSettings` / `__gacStatus` bootstrap
-  into every page's `<head>` (one `GaConnector::html()` call).
+- **Rendering** the `__gacSettings` / `__gacStatus` bootstrap into every page's
+  `<head>` (one `GaConnector::html()` call). This demo also turns on
+  `inlineContext`, so the server-captured `__gacContext` block comes along —
+  fine here because nothing is cached.
 - **Proxying** the tracker's browser calls through this site's own `/gac`
   routes: `GET /gac/js`, `POST /gac/events/pageview`, `POST /gac/events/identify`
   (one `GaConnector::serve()` call).

@@ -4,9 +4,9 @@ A framework-agnostic PHP library that turns any PHP application into a
 GA Connector tracker, the same way the WordPress plugin does for WordPress.
 It does two things:
 
-1. **Renders the inline bootstrap** (`window.__gacContext`,
-   `window.__gacSettings`, `window.__gacStatus`) plus the tracker
-   `<script>` tag into your page.
+1. **Renders the inline bootstrap** (`window.__gacSettings`,
+   `window.__gacStatus`, and optionally `window.__gacContext`) plus the
+   tracker `<script>` tag into your page.
 2. **Proxies the tracking calls** through your own domain — three
    handlers (`js`, `events/pageview`, `events/identify`) that attach your
    API key server-side and forward to the GA Connector tracking API. Plus
@@ -52,6 +52,7 @@ $gac = GaConnector::create([
     // 'debug'           => false,
     // 'iframeEnabled'   => true,
     // 'internalDomains' => ['shop.example.com'],
+    // 'inlineContext'   => false,          // see "Server-side page context" below
 ]);
 ```
 
@@ -65,6 +66,38 @@ echo $gac->html();
 
 In `consent` mode the script tag is omitted; fetch it for your GTM /
 consent-banner snippet with `$gac->scriptTag()`.
+
+### Server-side page context (optional)
+
+By default the bootstrap contains nothing per-visitor: just
+`__gacSettings` and the `__gacStatus` baseline, both identical on every
+request. The tracker reads `window.location.href`, `document.referrer`,
+and `navigator.userAgent` in the browser.
+
+Turn on `'inlineContext' => true` and the bootstrap also carries a
+`window.__gacContext` block captured server-side — the request URL,
+referrer, user-agent, and render time (never a visitor ID). The tracker
+prefers it when present. The reason to want it is the URL: Safari's ITP
+strips query parameters (and with them `gclid`, `utm_*`, and friends)
+from `window.location`, while the server sees them intact.
+
+**Only enable it if the page is not served from a full-page cache.**
+Cached HTML would hand every later visitor the first visitor's URL and
+referrer.
+
+If you do cache, keep `inlineContext` off and render the two snippets
+separately — the settings block in the cached template, the context block
+in an uncached hole-punched fragment:
+
+```php
+echo $gac->settingsScript();   // cacheable: __gacSettings + __gacStatus
+echo $gac->contextScript();    // per-request: __gacContext
+echo $gac->scriptTag();        // the tracker <script> tag
+```
+
+`$gac->html()` is exactly those three concatenated (minus the context
+block when `inlineContext` is off, and minus the script tag in `consent`
+mode), so composing by hand costs you nothing.
 
 ### 2. Mount the proxy routes
 
@@ -115,9 +148,13 @@ Both library exceptions implement `GaConnector\Tracking\Exception\ExceptionInter
 so you can `catch (\GaConnector\Tracking\Exception\ExceptionInterface $e)` to handle
 any GA Connector error in one clause.
 
-`$gac->html()`, `$gac->scriptTag()`, `$gac->serve()`, and
-`$gac->verifyAccount()` are shorthands; the underlying `renderer()`, `proxy()`,
-and `api()` objects are still available for advanced use.
+`$gac->html()`, `$gac->contextScript()`, `$gac->settingsScript()`,
+`$gac->scriptTag()`, `$gac->serve()`, and `$gac->verifyAccount()` are
+shorthands; the underlying `renderer()`, `proxy()`, and `api()` objects are
+still available for advanced use. Each renderer method that reads
+superglobals has a `...FromRequest($request)` sibling
+(`renderFromRequest()`, `contextScriptFromRequest()`) for framework
+integrations that already hold a request object.
 
 ### Configure once with the `GaConnector` facade
 
@@ -159,6 +196,7 @@ multi-tenant). Calling a passthrough before `configure()` throws
 | `debug`            | no       | `false`                          | Emits `__gacSettings.debug`                               |
 | `iframeEnabled`    | no       | `true`                           | Cross-frame messaging in the tracker                      |
 | `internalDomains`  | no       | `[]`                             | Other owned domains for cross-domain link decoration      |
+| `inlineContext`    | no       | `false`                          | Inline `__gacContext`; only for pages that aren't cached  |
 
 ## How it maps to the tracking API
 
