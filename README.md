@@ -205,7 +205,7 @@ The library targets the tracking API contract (`Authorization: Bearer`,
 identifier on identify, `GET /api/v1/account`). The browser tracker itself
 is served unchanged from `GET /api/v1/js`; the `js` handler only rewrites
 its `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}` placeholders to your own routes.
-See the [language libraries spec](../tracking-api.gaconnector.com/spec/05-language-libraries-proposal.md).
+See the [language libraries spec](../tracking-api/spec/05-language-libraries-proposal.md).
 
 ## Testing (contributors)
 

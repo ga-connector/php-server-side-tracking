@@ -131,7 +131,7 @@ $account = GaConnector::verifyAccount($host); // install-time verification
   `document.referrer` / `navigator.userAgent` when the block is absent, so leaving it off
   costs only Safari-ITP-stripped query params.
 - Follow the tracking API OpenAPI contract in
-  `../tracking-api.gaconnector.com/` (bearer auth, `page_url`/`referrer`/`user_agent`/`ip`
+  `../tracking-api/` (bearer auth, `page_url`/`referrer`/`user_agent`/`ip`
   on page views, hashed identifier on identify, `GET /api/v1/account`, `GET /api/v1/js`).
 
 ## Testing
