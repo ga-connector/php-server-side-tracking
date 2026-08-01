@@ -7,8 +7,8 @@
  * PHP built-in server, public/index.php for Apache/nginx) requires this file
  * and calls handle_request(). It demonstrates both library capabilities:
  *
- *   1. Rendering the __gacContext / __gacSettings / __gacStatus bootstrap
- *      into each page (Renderer).
+ *   1. Rendering the __gacSettings / __gacStatus bootstrap into each page,
+ *      plus __gacContext since this demo opts into inlineContext (Renderer).
  *   2. Serving the same-origin /gac/* proxy routes (Proxy): the tracker
  *      script, page-view events, and identify events.
  *
@@ -39,6 +39,9 @@ function boot_gac(): void
         'apiKey' => getenv('GAC_API_KEY') ?: 'gac_api_REPLACE_ME',
         'basePath' => '/gac',
         'debug' => true,
+        // Off by default because it makes pages uncacheable; safe here since
+        // this demo renders every request fresh.
+        'inlineContext' => true,
     ]);
 }
 

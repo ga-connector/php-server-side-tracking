@@ -7,18 +7,23 @@ namespace GaConnector\Tracking;
 use GaConnector\Tracking\Http\Request;
 
 /**
- * Renders the inline bootstrap the browser tracker reads:
+ * Renders the inline bootstrap the browser tracker reads, as two snippets
+ * that can be emitted together or placed independently:
  *
- *   - `window.__gacContext`  — per-request data captured server-side
- *     (URL, referrer, user-agent, render time). Never a visitor id.
- *   - `window.__gacSettings` — read-only tracker config from {@see Config}.
- *   - `window.__gacStatus`   — always-on baseline (`script_pending` in auto
- *     mode, `awaiting_consent` in consent mode), upgraded later by the
- *     tracker.
+ *   - {@see Renderer::settingsScript()} — `window.__gacSettings` (read-only
+ *     tracker config from {@see Config}) and the `window.__gacStatus`
+ *     baseline (`script_pending` in auto mode, `awaiting_consent` in consent
+ *     mode, upgraded later by the tracker). Identical for every visitor, so
+ *     it is safe to serve from a full-page cache.
+ *   - {@see Renderer::contextScript()} — `window.__gacContext`, the
+ *     per-request data captured server-side (URL, referrer, user-agent,
+ *     render time; never a visitor id). Different for every visitor, so a
+ *     cached page would serve stale values.
  *
- * In auto mode the tracker `<script>` tag is appended; in consent mode it is
- * omitted (the customer injects it via GTM / a consent banner using
- * {@see Renderer::scriptTag()}).
+ * {@see Renderer::render()} emits the settings snippet, the context snippet
+ * when `inlineContext` is enabled, and — in auto mode — the tracker
+ * `<script>` tag. In consent mode the tag is omitted (the customer injects
+ * it via GTM / a consent banner using {@see Renderer::scriptTag()}).
  */
 final class Renderer
 {
@@ -32,67 +37,78 @@ final class Renderer
     }
 
     /**
-     * Build the bootstrap HTML for the given request.
-     *
-     * Debug off (production): everything is minified onto a single line with
-     * no whitespace between statements. Debug on: each `window.__gac*`
-     * assignment goes on its own line with pretty-printed JSON, for readable
-     * output while developing.
+     * Build the bootstrap HTML for the current request, read from
+     * superglobals.
      */
-    public function render(Request $request): string
+    public function render(): string
     {
-        $context = [
-            'url' => $request->url,
-            'referrer' => $request->referrer(),
-            'user_agent' => $request->userAgent(),
-            'rendered_at' => time(),
-        ];
-
-        $status = $this->config->mode === Config::MODE_CONSENT ? 'awaiting_consent' : 'script_pending';
-
-        $assignments = [
-            ['window.__gacContext', $context],
-            ['window.__gacSettings', $this->settings()],
-            ['window.__gacStatus', $status],
-        ];
-
-        $withScriptTag = $this->config->mode !== Config::MODE_CONSENT;
-
-        if ($this->config->debug) {
-            $lines = [];
-            foreach ($assignments as $assignment) {
-                $lines[] = $assignment[0] . ' = ' . $this->encode($assignment[1], true) . ';';
-            }
-
-            $script = "<script>\n" . implode("\n", $lines) . "\n</script>";
-
-            if ($withScriptTag) {
-                $script .= "\n" . $this->scriptTag();
-            }
-
-            return $script;
-        }
-
-        $body = '';
-        foreach ($assignments as $assignment) {
-            $body .= $assignment[0] . '=' . $this->encode($assignment[1]) . ';';
-        }
-
-        $script = '<script>' . $body . '</script>';
-
-        if ($withScriptTag) {
-            $script .= $this->scriptTag();
-        }
-
-        return $script;
+        return $this->renderFromRequest(Request::fromGlobals());
     }
 
     /**
-     * Convenience wrapper that reads the current request from superglobals.
+     * Build the bootstrap HTML for an explicit request, for integrations
+     * that already have their framework's request object.
+     *
+     * The context snippet is only included when `inlineContext` is enabled;
+     * without it the tracker reads `window.location.href`,
+     * `document.referrer`, and `navigator.userAgent` instead.
      */
-    public function renderFromGlobals(): string
+    public function renderFromRequest(Request $request): string
     {
-        return $this->render(Request::fromGlobals());
+        $parts = [];
+
+        if ($this->config->inlineContext) {
+            $parts[] = $this->contextScriptFromRequest($request);
+        }
+
+        $parts[] = $this->settingsScript();
+
+        if ($this->config->mode !== Config::MODE_CONSENT) {
+            $parts[] = $this->scriptTag();
+        }
+
+        return implode($this->config->debug ? "\n" : '', $parts);
+    }
+
+    /**
+     * The `__gacContext` snippet for the current request, read from
+     * superglobals.
+     *
+     * Rendered whether or not `inlineContext` is enabled: enabling the
+     * option is how you ask {@see Renderer::render()} to include it, while
+     * calling this directly is how you place it yourself — e.g. inside an
+     * uncached fragment of an otherwise cached page.
+     */
+    public function contextScript(): string
+    {
+        return $this->contextScriptFromRequest(Request::fromGlobals());
+    }
+
+    /**
+     * The `__gacContext` snippet for an explicit request.
+     */
+    public function contextScriptFromRequest(Request $request): string
+    {
+        return $this->scriptBlock([
+            ['window.__gacContext', [
+                'url' => $request->url,
+                'referrer' => $request->referrer(),
+                'user_agent' => $request->userAgent(),
+                'rendered_at' => time(),
+            ]],
+        ]);
+    }
+
+    /**
+     * The `__gacSettings` + `__gacStatus` snippet. Takes no request: nothing
+     * in it varies per visitor.
+     */
+    public function settingsScript(): string
+    {
+        return $this->scriptBlock([
+            ['window.__gacSettings', $this->settings()],
+            ['window.__gacStatus', $this->config->mode === Config::MODE_CONSENT ? 'awaiting_consent' : 'script_pending'],
+        ]);
     }
 
     /**
@@ -130,6 +146,35 @@ final class Renderer
         }
 
         return $settings;
+    }
+
+    /**
+     * Wrap `window.__gac*` assignments in a `<script>` block.
+     *
+     * Debug off (production): everything is minified onto a single line with
+     * no whitespace between statements. Debug on: each assignment goes on
+     * its own line with pretty-printed JSON, for readable output while
+     * developing.
+     *
+     * @param list<array{0: string, 1: mixed}> $assignments
+     */
+    private function scriptBlock(array $assignments): string
+    {
+        if ($this->config->debug) {
+            $lines = [];
+            foreach ($assignments as $assignment) {
+                $lines[] = $assignment[0] . ' = ' . $this->encode($assignment[1], true) . ';';
+            }
+
+            return "<script>\n" . implode("\n", $lines) . "\n</script>";
+        }
+
+        $body = '';
+        foreach ($assignments as $assignment) {
+            $body .= $assignment[0] . '=' . $this->encode($assignment[1]) . ';';
+        }
+
+        return '<script>' . $body . '</script>';
     }
 
     /**

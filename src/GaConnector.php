@@ -92,6 +92,16 @@ final class GaConnector
         return self::instance()->html();
     }
 
+    public static function contextScript(): string
+    {
+        return self::instance()->contextScript();
+    }
+
+    public static function settingsScript(): string
+    {
+        return self::instance()->settingsScript();
+    }
+
     public static function scriptTag(): string
     {
         return self::instance()->scriptTag();

@@ -42,11 +42,30 @@ final class Client
 
     /**
      * Render the inline bootstrap for the current request. Shorthand for
-     * `renderer()->renderFromGlobals()`.
+     * `renderer()->render()`.
      */
     public function html(): string
     {
-        return $this->renderer->renderFromGlobals();
+        return $this->renderer->render();
+    }
+
+    /**
+     * The `__gacContext` snippet for the current request, for placing it
+     * yourself (e.g. in an uncached fragment). Shorthand for
+     * `renderer()->contextScript()`.
+     */
+    public function contextScript(): string
+    {
+        return $this->renderer->contextScript();
+    }
+
+    /**
+     * The `__gacSettings` + `__gacStatus` snippet. Shorthand for
+     * `renderer()->settingsScript()`.
+     */
+    public function settingsScript(): string
+    {
+        return $this->renderer->settingsScript();
     }
 
     /**

@@ -32,6 +32,7 @@ final class Config
     public bool $iframeEnabled;
     /** @var list<string> */
     public array $internalDomains;
+    public bool $inlineContext;
 
     /**
      * @param list<string> $internalDomains
@@ -43,7 +44,8 @@ final class Config
         string $mode = self::MODE_AUTO,
         bool $debug = false,
         bool $iframeEnabled = true,
-        array $internalDomains = []
+        array $internalDomains = [],
+        bool $inlineContext = false
     ) {
         $this->apiKey = $apiKey;
         $this->basePath = $basePath;
@@ -52,6 +54,7 @@ final class Config
         $this->debug = $debug;
         $this->iframeEnabled = $iframeEnabled;
         $this->internalDomains = $internalDomains;
+        $this->inlineContext = $inlineContext;
     }
 
     /**
@@ -96,7 +99,8 @@ final class Config
             $mode,
             (bool) ($options['debug'] ?? false),
             (bool) ($options['iframeEnabled'] ?? true),
-            $internalDomains
+            $internalDomains,
+            (bool) ($options['inlineContext'] ?? false)
         );
     }
 

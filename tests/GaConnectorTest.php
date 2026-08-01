@@ -70,7 +70,15 @@ final class GaConnectorTest extends TestCase
     {
         GaConnector::configure(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
 
-        self::assertStringContainsString('window.__gacContext', GaConnector::html());
+        self::assertStringContainsString('window.__gacSettings', GaConnector::html());
+    }
+
+    public function testSnippetsDelegateToSharedInstance(): void
+    {
+        GaConnector::configure(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+
+        self::assertStringContainsString('window.__gacContext', GaConnector::contextScript());
+        self::assertStringContainsString('window.__gacStatus', GaConnector::settingsScript());
     }
 
     public function testVerifyAccountDelegatesToSharedInstance(): void

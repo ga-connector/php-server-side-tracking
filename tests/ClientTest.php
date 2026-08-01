@@ -27,7 +27,15 @@ final class ClientTest extends TestCase
     {
         $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
 
-        self::assertStringContainsString('window.__gacContext', $client->html());
+        self::assertStringContainsString('window.__gacSettings', $client->html());
+    }
+
+    public function testSnippetsDelegateToRenderer(): void
+    {
+        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+
+        self::assertStringContainsString('window.__gacContext', $client->contextScript());
+        self::assertStringContainsString('window.__gacStatus', $client->settingsScript());
     }
 
     public function testScriptTagDelegatesToRenderer(): void

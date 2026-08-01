@@ -2,8 +2,8 @@
 
 A framework-agnostic PHP library that turns any PHP application into a GA Connector
 tracker, the same way the WordPress plugin does for WordPress. It (1) renders the
-inline tracker bootstrap (`__gacContext` / `__gacSettings` / `__gacStatus`) plus the
-tracker `<script>` tag into a page, and (2) proxies the tracking calls through the
+inline tracker bootstrap (`__gacSettings` / `__gacStatus`, plus `__gacContext` when
+opted in) with the tracker `<script>` tag into a page, and (2) proxies the tracking calls through the
 customer's own domain so the API key never reaches the browser. It also exposes an
 account-verification client for install/config time.
 
@@ -27,7 +27,7 @@ src/
 ├── GaConnector.php        # Entry point: factory + static configure-once facade
 ├── Client.php             # A configured client; thin convenience methods over collaborators
 ├── Config.php             # Immutable config, built from an options array via Config::fromArray()
-├── Renderer.php           # Builds the inline bootstrap + <script> tag
+├── Renderer.php           # Builds the bootstrap snippets (settings, context) + <script> tag
 ├── Proxy.php              # The three same-origin handlers (js, events/pageview, events/identify)
 ├── TrackingApiClient.php  # Talks to the tracking API (events + account verification + script fetch)
 ├── Account.php            # Value object returned by verifyAccount() (+ allows($domain))
@@ -70,12 +70,17 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 ```
 
 - `GaConnector` — factory (`create`) + static facade (`configure`, `use`, `isConfigured`,
-  `reset`, `instance`) whose passthroughs (`html`, `scriptTag`, `serve`, `verifyAccount`,
-  `config`, `renderer`, `proxy`, `api`) throw `NotConfiguredException` if called
-  before `configure()`.
-- `Client` — the convenience methods (`html`, `scriptTag`, `serve`, `verifyAccount`) delegate
-  to the underlying `Renderer` / `Proxy` / `TrackingApiClient`, which stay accessible via
-  `renderer()` / `proxy()` / `api()`.
+  `reset`, `instance`) whose passthroughs (`html`, `contextScript`, `settingsScript`,
+  `scriptTag`, `serve`, `verifyAccount`, `config`, `renderer`, `proxy`, `api`) throw
+  `NotConfiguredException` if called before `configure()`.
+- `Client` — the convenience methods (`html`, `contextScript`, `settingsScript`, `scriptTag`,
+  `serve`, `verifyAccount`) delegate to the underlying `Renderer` / `Proxy` /
+  `TrackingApiClient`, which stay accessible via `renderer()` / `proxy()` / `api()`.
+- `Renderer` — `render()` emits `contextScript()` when `inlineContext` is on, then
+  `settingsScript()`, then `scriptTag()` in auto mode. Each snippet is a complete
+  standalone `<script>` block, so composing them by hand is byte-identical to `render()`.
+  The globals-reading method is the plain name; the explicit-request sibling carries a
+  `FromRequest` suffix (`renderFromRequest()`, `contextScriptFromRequest()`).
 - `verifyAccount()` returns an `Account` value object (`accountId`, `accountName`, `email`,
   `allowedDomains`, plus `allows($domain)`). All library exceptions implement
   `Exception\ExceptionInterface` for a single catch-all.
@@ -120,6 +125,11 @@ $account = GaConnector::verifyAccount($host); // install-time verification
   placeholders to the customer's own proxy routes — the tracker itself is served unchanged.
 - **The API key stays server-side.** It is attached as `Authorization: Bearer` inside the
   proxy/`TrackingApiClient` and must never be rendered into the page or exposed to the browser.
+- **The default bootstrap is cache-safe.** Nothing per-visitor is inlined unless the
+  customer sets `inlineContext`, because a full-page cache would replay one visitor's
+  `__gacContext` to everyone. The tracker falls back to `window.location.href` /
+  `document.referrer` / `navigator.userAgent` when the block is absent, so leaving it off
+  costs only Safari-ITP-stripped query params.
 - Follow the tracking API OpenAPI contract in
   `../tracking-api.gaconnector.com/` (bearer auth, `page_url`/`referrer`/`user_agent`/`ip`
   on page views, hashed identifier on identify, `GET /api/v1/account`, `GET /api/v1/js`).
