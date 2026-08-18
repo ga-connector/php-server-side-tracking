@@ -143,6 +143,8 @@ try {
     $account = $gac->verifyAccount('example.com');
     // $account is a GaConnector\Tracking\Account value object:
     //   $account->accountId, $account->accountName, $account->email, $account->allowedDomains
+    // allows() is true for an exact host or a subdomain of a registered domain
+    // (e.g. www-staging.example.com when example.com is listed).
     $connected = $account->allows('example.com');
 } catch (AccountVerificationException $e) {
     // $e->getStatus() is 401 (bad key), 403 (subscription lapsed), or 404 (unknown account)
