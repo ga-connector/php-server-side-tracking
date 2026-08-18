@@ -128,6 +128,13 @@ $response->emit();
 
 ### 3. Verify the API key (install / config time)
 
+Call this when you save settings or from an admin/setup page — not on every
+visitor request.
+
+The demo site exposes it as a normal page at `/setup` (open it in a browser;
+no CLI). Copy that handler into your own admin page if you want the same
+signal in production:
+
 ```php
 use GaConnector\Tracking\Exception\AccountVerificationException;
 use GaConnector\Tracking\Exception\NoHttpTransportException;
@@ -184,7 +191,7 @@ multi-tenant). Calling a passthrough before `configure()` throws
 
 ## Examples
 
-- [`examples/website/`](examples/website/) — a complete, runnable demo site with real `/gac` rewrites for the PHP built-in server, Apache, and nginx. It shows rendering the `<head>` snippet (`GaConnector::html()`) and proxying `/gac/*` tracking requests (`GaConnector::serve()`). Start it with `GAC_API_KEY=... php -S localhost:8080 examples/website/router.php` and see its [README](examples/website/README.md).
+- [`examples/website/`](examples/website/) — a complete, runnable demo site with real `/gac` rewrites for the PHP built-in server, Apache, and nginx. It shows rendering the `<head>` snippet (`GaConnector::html()`), proxying `/gac/*` tracking requests (`GaConnector::serve()`), and a `/setup` page that verifies the API key and domain in the browser (no CLI). Start it with `GAC_API_KEY=... php -S localhost:8080 examples/website/router.php` and see its [README](examples/website/README.md).
 
 ## Configuration reference
 

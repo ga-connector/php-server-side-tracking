@@ -10,6 +10,9 @@ tracking PHP library end-to-end. It shows both library capabilities:
 - **Proxying** the tracker's browser calls through this site's own `/gac`
   routes: `GET /gac/js`, `POST /gac/events/pageview`, `POST /gac/events/identify`
   (one `GaConnector::serve()` call).
+- **Setup check** at `/setup`: a normal browser page that calls
+  `verifyAccount()` once so you can confirm the API key and domain. Visitor pages and `/gac/*` do not call
+  `/account`.
 
 The API key stays on the server; the browser only ever talks to this site.
 
@@ -55,16 +58,22 @@ Optional environment variables:
 
 ## What to check
 
-1. **Page view.** Load `/`. In DevTools → Network you should see
+1. **Setup.** Open <http://localhost:8080/setup> (or `/setup` on your shared-host URL).
+   That page alone calls `GET /api/v1/account` and shows whether the API key
+   works and whether this host is on the account's domains list. Home / About /
+   Contact / `/gac/*` never hit that endpoint. Override the host with
+   `?domain=other.example.com` if needed. Works the same under Apache/nginx —
+   no CLI required.
+2. **Page view.** Load `/`. In DevTools → Network you should see
    `GET /gac/js` return the tracker, then `POST /gac/events/pageview` fire once
    the script runs. The bottom-right status box shows `__gacStatus: ok` and a
    `__gacvid` cookie value.
-2. **Stable visitor.** Click through to `/about` and back. `__gacvid` stays the
+3. **Stable visitor.** Click through to `/about` and back. `__gacvid` stays the
    same across page loads.
-3. **Identify.** On `/contact`, submit the form with an email. The tracker
+4. **Identify.** On `/contact`, submit the form with an email. The tracker
    hashes the email in the browser and fires `POST /gac/events/identify`
    (visible in the Network tab). The plaintext email never leaves the browser.
-4. **Proxy rewrite sanity.** `curl -s http://localhost:8080/gac/js | head` shows
+5. **Proxy rewrite sanity.** `curl -s http://localhost:8080/gac/js | head` shows
    real JavaScript with the endpoint placeholders already rewritten to
    `/gac/events/pageview` and `/gac/events/identify`.
 

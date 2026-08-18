@@ -48,7 +48,7 @@ src/
     └── NotConfiguredException.php         # facade used before GaConnector::configure()
 
 tests/            # PHPUnit suite (mirrors src/); tests/Support/StubTransport.php is the fake transport
-examples/website/ # The single, runnable demo site (PHP built-in server, Apache, nginx rewrites)
+examples/website/ # Demo site (pages + /gac/* proxies + /setup install check)
 ```
 
 ## Public API surface

@@ -12,6 +12,9 @@
  *   2. Serving the same-origin /gac/* proxy routes (Proxy): the tracker
  *      script, page-view events, and identify events.
  *
+ * Plus an install-time /setup page that calls verifyAccount() once so an
+ * integrator can confirm the API key and domain without using a CLI.
+ *
  * Configure it with one environment variable:
  *   GAC_API_KEY       your gac_api_<accountId>_<secret> key (required for the
  *                     event proxies to be accepted upstream; the page and the
@@ -22,6 +25,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../vendor/autoload.php';
 
+use GaConnector\Tracking\Exception\AccountVerificationException;
+use GaConnector\Tracking\Exception\NoHttpTransportException;
 use GaConnector\Tracking\GaConnector;
 
 /**
@@ -83,6 +88,13 @@ function handle_request(): void
 
             return;
 
+        case '/setup':
+            // Install/config check only — calls GET /api/v1/account once per
+            // load. Home / About / Contact / /gac/* never hit that endpoint.
+            render_page('Setup', setup_body());
+
+            return;
+
         default:
             http_response_code(404);
             render_page('Not found', '<h1>404</h1><p>No such page. Try the navigation above.</p>');
@@ -130,6 +142,11 @@ function render_page(string $title, string $bodyHtml): void
         button { margin-top: 1rem; padding: 0.55rem 1.1rem; font-size: 1rem; border: 0; border-radius: 6px; background: #2d6cdf; color: #fff; cursor: pointer; }
         code { background: #8882; padding: 0.1rem 0.35rem; border-radius: 4px; }
         .notice { padding: 0.75rem 1rem; border-radius: 8px; background: #2e7d3222; border: 1px solid #2e7d3255; margin-bottom: 1rem; }
+        .notice-warn { background: #f9a82522; border-color: #f9a82566; }
+        .notice-error { background: #c6282822; border-color: #c6282866; }
+        .notice dt { font-weight: 600; margin-top: 0.5rem; }
+        .notice dd { margin: 0.15rem 0 0 0; }
+        .notice dd ul { margin: 0.25rem 0 0; padding-left: 1.25rem; }
         #gac-status { position: fixed; right: 1rem; bottom: 1rem; font: 12px/1.4 ui-monospace, monospace;
             background: #000c; color: #fff; padding: 0.6rem 0.8rem; border-radius: 8px; max-width: 320px; }
         #gac-status b { color: #7fd67f; }
@@ -142,6 +159,7 @@ function render_page(string $title, string $bodyHtml): void
             <a href="/">Home</a>
             <a href="/about">About</a>
             <a href="/contact">Contact</a>
+            <a href="/setup">Setup</a>
         </nav>
     </header>
     <main>
@@ -183,7 +201,9 @@ fire once the script runs.</p>
 call to <code>GaConnector::html()</code>. The API key never
 reaches the browser — it is attached server-side by the proxy.</p>
 <p>Navigate to <a href="/about">About</a> (another page view) or
-<a href="/contact">Contact</a> to trigger an identify from the form.</p>
+<a href="/contact">Contact</a> to trigger an identify from the form.
+Open <a href="/setup">Setup</a> to verify the API key and whether this
+host is on the account's domains list.</p>
 <p>The status box in the bottom-right shows the tracker's live
 <code>__gacStatus</code> and the <code>__gacvid</code> visitor cookie.</p>
 HTML;
@@ -236,4 +256,119 @@ the API key attached.</p>
     <button type="submit">Send</button>
 </form>
 HTML;
+}
+
+/**
+ * Install/config page: calls GET /api/v1/account once and shows whether the
+ * API key works and whether this host is on the account's domains list.
+ *
+ * Tracking still works if the domain is unregistered (same as v2 track). This
+ * page is how an integrator notices — open it in a browser; no CLI needed.
+ */
+function setup_body(): string
+{
+    $domain = setup_domain();
+    $safeDomain = htmlspecialchars($domain, ENT_QUOTES, 'UTF-8');
+
+    $intro = <<<HTML
+<h1>Setup check</h1>
+<p>This page calls <code>GaConnector::verifyAccount()</code> once (the tracking
+API's <code>GET /api/v1/account</code>). Home, About, Contact, and the
+<code>/gac/*</code> proxies never do that — only this page does.</p>
+<p>Checking host: <code>{$safeDomain}</code>
+(override with <code>?domain=other.example.com</code>).</p>
+HTML;
+
+    if ($domain === '') {
+        return $intro . '<p class="notice notice-error"><strong>Could not determine the site domain.</strong> '
+            . 'Pass <code>?domain=example.com</code>.</p>';
+    }
+
+    try {
+        $account = GaConnector::verifyAccount($domain);
+    } catch (AccountVerificationException $e) {
+        return $intro . setup_auth_failure($e->getStatus());
+    } catch (NoHttpTransportException $e) {
+        return $intro . '<p class="notice notice-error"><strong>Could not reach the API.</strong> '
+            . 'Neither cURL nor sockets are available on this host.</p>';
+    } catch (\Throwable $e) {
+        $msg = htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+
+        return $intro . '<p class="notice notice-error"><strong>Could not reach the API.</strong> '
+            . '<code>' . $msg . '</code></p>';
+    }
+
+    $safeName = htmlspecialchars($account->accountName, ENT_QUOTES, 'UTF-8');
+    $safeEmail = htmlspecialchars($account->email, ENT_QUOTES, 'UTF-8');
+    $safeId = htmlspecialchars($account->accountId, ENT_QUOTES, 'UTF-8');
+    $registered = '—';
+    if ($account->allowedDomains !== []) {
+        $items = [];
+        foreach ($account->allowedDomains as $allowed) {
+            $items[] = '<li><code>' . htmlspecialchars($allowed, ENT_QUOTES, 'UTF-8') . '</code></li>';
+        }
+        $registered = '<ul>' . implode('', $items) . '</ul>';
+    }
+
+    $details = <<<HTML
+<dl>
+    <dt>Account</dt><dd>{$safeName} (<code>{$safeId}</code>)</dd>
+    <dt>Owner email</dt><dd>{$safeEmail}</dd>
+    <dt>Registered domains</dt><dd>{$registered}</dd>
+</dl>
+HTML;
+
+    if ($account->allows($domain)) {
+        return $intro . '<div class="notice"><strong>Connected.</strong> This host is on the account\'s domains list.'
+            . $details . '</div>';
+    }
+
+    return $intro . '<div class="notice notice-warn"><strong>Domain not on the account\'s domains list.</strong> '
+        . 'The API key is valid, but <code>' . $safeDomain . '</code> is not registered. '
+        . 'Tracking events are still accepted (same as v2 track); register this domain in the '
+        . 'GA Connector dashboard if it should be listed.'
+        . $details . '</div>';
+}
+
+/**
+ * Host to verify: ?domain= override, else the request Host header (no port).
+ */
+function setup_domain(): string
+{
+    $override = isset($_GET['domain']) ? trim((string) $_GET['domain']) : '';
+    if ($override !== '') {
+        return strtolower($override);
+    }
+
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '');
+    $host = strtolower(trim($host));
+    if ($host === '') {
+        return '';
+    }
+
+    // Strip port (localhost:8080 → localhost).
+    if (strpos($host, ':') !== false) {
+        $host = explode(':', $host, 2)[0];
+    }
+
+    return $host;
+}
+
+function setup_auth_failure(int $status): string
+{
+    if ($status === 401) {
+        return '<p class="notice notice-error"><strong>Invalid API key.</strong> '
+            . 'Double-check <code>GAC_API_KEY</code> (format <code>gac_api_&lt;accountId&gt;_&lt;secret&gt;</code>).</p>';
+    }
+    if ($status === 403) {
+        return '<p class="notice notice-error"><strong>Subscription lapsed.</strong> '
+            . 'Update billing in the GA Connector dashboard and try again.</p>';
+    }
+    if ($status === 404) {
+        return '<p class="notice notice-error"><strong>Account not found.</strong> '
+            . 'The key is well-formed but does not match a known account.</p>';
+    }
+
+    return '<p class="notice notice-error"><strong>Unexpected response from the API</strong> '
+        . '(HTTP ' . $status . ').</p>';
 }
