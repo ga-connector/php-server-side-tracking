@@ -53,8 +53,9 @@ final class Account
     }
 
     /**
-     * Whether the given domain is in this account's allowed domains
-     * (case-insensitive).
+     * Whether the given domain is covered by this account's allowed domains
+     * (case-insensitive): an exact host match, or a subdomain of a listed
+     * domain (e.g. `www-staging.example.com` when `example.com` is listed).
      */
     public function allows(string $domain): bool
     {
@@ -64,7 +65,16 @@ final class Account
         }
 
         foreach ($this->allowedDomains as $allowed) {
-            if (strtolower(trim($allowed)) === $needle) {
+            $allowed = strtolower(trim($allowed));
+            if ($allowed === '') {
+                continue;
+            }
+            if ($needle === $allowed) {
+                return true;
+            }
+            $suffix = '.' . $allowed;
+            $suffixLen = strlen($suffix);
+            if (strlen($needle) > $suffixLen && substr($needle, -$suffixLen) === $suffix) {
                 return true;
             }
         }

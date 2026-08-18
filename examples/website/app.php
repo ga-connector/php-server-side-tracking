@@ -262,8 +262,7 @@ HTML;
  * Install/config page: calls GET /api/v1/account once and shows whether the
  * API key works and whether this host is on the account's domains list.
  *
- * Tracking still works if the domain is unregistered (same as v2 track). This
- * page is how an integrator notices — open it in a browser; no CLI needed.
+ * Open it in a browser; no CLI needed.
  */
 function setup_body(): string
 {
@@ -319,14 +318,13 @@ HTML;
 HTML;
 
     if ($account->allows($domain)) {
-        return $intro . '<div class="notice"><strong>Connected.</strong> This host is on the account\'s domains list.'
+        return $intro . '<div class="notice"><strong>Connected.</strong> This host is covered by the account\'s domains list.'
             . $details . '</div>';
     }
 
     return $intro . '<div class="notice notice-warn"><strong>Domain not on the account\'s domains list.</strong> '
         . 'The API key is valid, but <code>' . $safeDomain . '</code> is not registered. '
-        . 'Tracking events are still accepted (same as v2 track); register this domain in the '
-        . 'GA Connector dashboard if it should be listed.'
+        . 'Register this domain in the GA Connector dashboard if it should be listed.'
         . $details . '</div>';
 }
 
