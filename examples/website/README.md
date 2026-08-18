@@ -1,18 +1,28 @@
 # Demo website
 
-A complete, runnable multi-page site that uses the GA Connector server-side
-tracking PHP library end-to-end. It shows both library capabilities:
+A **minimal reference implementation** — a hand-rolled multi-page site that
+shows the GA Connector PHP library's two integration points working
+end-to-end. It is **not** a starter kit, and `app.php`'s routing and layout
+are **not** the integration pattern to copy into Laravel, Symfony, or any
+other framework.
 
-- **Rendering** the `__gacSettings` / `__gacStatus` bootstrap into every page's
-  `<head>` (one `GaConnector::html()` call). This demo also turns on
-  `inlineContext`, so the server-captured `__gacContext` block comes along —
-  fine here because nothing is cached.
-- **Proxying** the tracker's browser calls through this site's own `/gac`
-  routes: `GET /gac/js`, `POST /gac/events/pageview`, `POST /gac/events/identify`
-  (one `GaConnector::serve()` call).
-- **Setup check** at `/setup`: a normal browser page that calls
-  `verifyAccount()` once so you can confirm the API key and domain. Visitor pages and `/gac/*` do not call
-  `/account`.
+Copy the calls; put them where **your** app already owns layout and routing:
+
+- **`GaConnector::html()`** in `render_page()` — the one line a real
+  integration adds to its template `<head>`.
+- **`GaConnector::serve()`** for every request under `/gac` — the same
+  proxy mount you would register on your own router or rewrite.
+- **`/setup`** — optional install-time `verifyAccount()` page. Visitor
+  pages and `/gac/*` never call `/account`.
+
+What this demo chooses (defaults unless noted):
+
+| Option | Demo value | Notes |
+| ------ | ---------- | ----- |
+| `mode` | `auto` (default) | Script tag included in `html()` |
+| `iframeEnabled` | `true` (default, unset) | Iframe handling lives in the tracker JS, not in `app.php`. No framed demo page; `__gacStatus` shows `iframe` only if you load a page inside a frame. |
+| `inlineContext` | `true` | Safe here because nothing is cached |
+| `debug` | `true` | Readable bootstrap + tracker console output |
 
 The API key stays on the server; the browser only ever talks to this site.
 
@@ -29,7 +39,7 @@ examples/website/
 
 Both entrypoints do the same thing: send every request to `handle_request()`
 in `app.php`, which routes `/gac/*` to the library proxy and everything else
-to a demo page (`/`, `/about`, `/contact`).
+to a demo page (`/`, `/about`, `/contact`, `/setup`).
 
 ## Prerequisite
 

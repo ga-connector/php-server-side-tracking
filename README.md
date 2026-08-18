@@ -15,6 +15,20 @@ It does two things:
 The visitor's browser only ever talks to your domain; your API key never
 reaches the browser.
 
+## This is an integration library
+
+Installing the package does **not** auto-instrument your site. Unlike the
+WordPress plugin — which hooks into WordPress for you — this library is an
+abstraction you place in **your** app:
+
+- You choose which HTML pages get the bootstrap (usually a shared layout).
+- You choose where the proxy routes live (front controller, framework
+  router, or rewrite) under your `basePath`.
+- Templates, routing, consent banners, and caching stay yours.
+
+The library only renders snippets and proxies the three endpoints with the
+API key attached. Everything else is the host application.
+
 ## Requirements
 
 - PHP 7.4+
@@ -37,6 +51,26 @@ Then load Composer's autoloader as usual:
 
 ```php
 require __DIR__ . '/vendor/autoload.php';
+```
+
+## What you wire up
+
+On each request, decide which of these apply:
+
+| Responsibility | When | Call |
+| -------------- | ---- | ---- |
+| Bootstrap in HTML | Every HTML page you want tracked | `html()` (or the composed snippets) in your shared layout — `<head>` or before `</body>`. Not on API-only responses. |
+| Proxy under `basePath` | Every request under that URL prefix | `serve()` or the individual handlers (`js`, `events/pageview`, `events/identify`), wherever your app already routes. |
+| Account check | Install / admin / setup only | `verifyAccount()`. Not on the visitor path. |
+| Configure once | App bootstrap | `GaConnector::create(...)` or `GaConnector::configure(...)`. |
+
+```text
+Incoming request
+  ├─ path under basePath?  →  serve() / proxy handlers
+  └─ otherwise
+       ├─ HTML page to track?  →  html() in layout
+       ├─ admin / setup?       →  verifyAccount() (optional)
+       └─ other                →  no library call
 ```
 
 ## Quick start
@@ -65,7 +99,8 @@ echo $gac->html();
 ```
 
 In `consent` mode the script tag is omitted; fetch it for your GTM /
-consent-banner snippet with `$gac->scriptTag()`.
+consent-banner snippet with `$gac->scriptTag()`. See
+[Injection mode vs iframe handling](#injection-mode-vs-iframe-handling).
 
 ### Server-side page context (optional)
 
@@ -191,21 +226,81 @@ $account = GaConnector::verifyAccount('example.com');
 multi-tenant). Calling a passthrough before `configure()` throws
 `NotConfiguredException`.
 
+## Injection mode vs iframe handling
+
+There is no library mode called `iframe`. Library `mode` is only `auto` or
+`consent`. Iframe behaviour lives in the browser tracker the proxy serves
+(`GET /gac/js`); you do not build a separate iframe integration.
+
+### `mode` — you choose how the script is injected
+
+| Value | What `html()` does | When to use |
+| ----- | ------------------ | ----------- |
+| `auto` (default) | Includes the tracker `<script>` tag; the script loads immediately | Sites without a consent gate, or where consent is already handled elsewhere |
+| `consent` | Emits settings + status only; omits the script tag | GDPR / consent banners or GTM — you inject `$gac->scriptTag()` yourself after consent |
+
+The library does **not** detect consent state, parse DNT/GPC, or talk to any
+consent-banner API. Wiring the script into your consent flow is your job.
+
+### Iframe handling — automatic in the tracker
+
+When the tracker runs inside a frame (`window.self !== window.top`):
+
+- It **suppresses the child page view** (the top window already reports the
+  visit) and sets `window.__gacStatus = "iframe"`.
+- Form identify inside the frame still works.
+- Cross-frame `postMessage` of visitor / GA ids is **on by default**
+  (`iframeEnabled` defaults to `true`). The library only writes
+  `iframeEnabled` into `__gacSettings` when you set it to `false`.
+- Page-view suppression still applies even if you disable messaging.
+
+No extra page, route, or example setup is required. Seeing `__gacStatus`
+equal to `iframe` means the tracker ran inside a frame and behaved
+correctly — it is not a fault and not a second mode you must configure.
+
+### Cross-domain link decoration — opt-in
+
+Leave `internalDomains` empty (default) and outbound links are unchanged.
+List other domains you own and the tracker stamps the visitor id onto links
+to those hosts so identity survives a cross-domain hop.
+
+### Reading `__gacStatus`
+
+The demo status box (and DevTools) show a single string:
+
+| Value | Meaning |
+| ----- | ------- |
+| `script_pending` | Baseline in `auto` mode before the tracker runs |
+| `awaiting_consent` | Baseline in `consent` mode before the script is injected |
+| `ok` | Tracker ran and fired its first page view |
+| `internal` | Tracker ran; referrer is in-site (normal navigation) |
+| `iframe` | Tracker ran inside a frame and suppressed the child page view |
+| `conflict` | A legacy `gaconnector2` tracker is also on the page |
+
 ## Examples
 
-- [`examples/website/`](examples/website/) — a complete, runnable demo site with real `/gac` rewrites for the PHP built-in server, Apache, and nginx. It shows rendering the `<head>` snippet (`GaConnector::html()`), proxying `/gac/*` tracking requests (`GaConnector::serve()`), and a `/setup` page that verifies the API key and domain in the browser (no CLI). Start it with `GAC_API_KEY=... php -S localhost:8080 examples/website/router.php` and see its [README](examples/website/README.md).
+[`examples/website/`](examples/website/) is a **minimal reference
+implementation** — a hand-rolled multi-page site that shows one way to call
+`GaConnector::html()`, `GaConnector::serve()`, and a `/setup` page. It is
+**not** a starter kit or a structure to copy into Laravel, Symfony, or any
+other framework.
+
+Copy the two integration points (bootstrap in the layout, proxy under
+`basePath`); put them where **your** app already owns layout and routing.
+See its [README](examples/website/README.md) for how to run it locally
+(`GAC_API_KEY=... php -S localhost:8080 examples/website/router.php`).
 
 ## Configuration reference
 
-| Option             | Required | Default                          | Notes                                                     |
-| ------------------ | -------- | -------------------------------- | --------------------------------------------------------- |
-| `apiKey`           | yes      | —                                | `gac_api_<accountId>_<secret>`; sent as a Bearer token    |
-| `basePath`         | yes      | —                                | URL prefix your proxy routes are mounted under, e.g. `/gac` |
-| `mode`             | no       | `auto`                           | `auto` injects the script tag; `consent` omits it         |
-| `debug`            | no       | `false`                          | Emits `__gacSettings.debug`                               |
-| `iframeEnabled`    | no       | `true`                           | Cross-frame messaging in the tracker                      |
-| `internalDomains`  | no       | `[]`                             | Other owned domains for cross-domain link decoration      |
-| `inlineContext`    | no       | `false`                          | Inline `__gacContext`; only for pages that aren't cached  |
+| Option             | Required | Default                          | Notes                                                                 |
+| ------------------ | -------- | -------------------------------- | --------------------------------------------------------------------- |
+| `apiKey`           | yes      | —                                | `gac_api_<accountId>_<secret>`; sent as a Bearer token                |
+| `basePath`         | yes      | —                                | URL prefix your proxy routes are mounted under, e.g. `/gac`           |
+| `mode`             | no       | `auto`                           | `auto` includes the script tag; `consent` omits it (you inject via GTM / consent banner). Not related to iframes. |
+| `debug`            | no       | `false`                          | Emits `__gacSettings.debug`                                           |
+| `iframeEnabled`    | no       | `true`                           | Tracker cross-frame messaging; on by default. Set `false` only to disable messaging. In-frame page-view suppression is always automatic. |
+| `internalDomains`  | no       | `[]`                             | Other owned domains for cross-domain link decoration (off until listed) |
+| `inlineContext`    | no       | `false`                          | Inline `__gacContext`; only for pages that aren't cached              |
 
 ## How it maps to the tracking API
 

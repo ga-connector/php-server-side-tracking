@@ -87,6 +87,18 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 
 ## Conventions
 
+### Public docs
+
+- The README must keep the **abstraction you integrate** framing: Composer
+  install does not auto-instrument a site; the developer wires `html()` into
+  their layout and the proxy under their `basePath`. Contrast with the
+  WordPress plugin (which hooks the host for you).
+- Keep `examples/` to the single minimal `website/` demo. Do not grow it into
+  framework starter kits or an iframe demo page.
+- Iframe handling is **tracker-automatic** (proxied `GET /api/v1/js`); document
+  it in the README. Do not implement a framed example unless asked. Library
+  `mode` is only `auto` / `consent` — there is no `iframe` mode.
+
 ### Commit messages
 
 - **Every commit message must follow [Conventional Commits](https://www.conventionalcommits.org/):**
