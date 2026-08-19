@@ -308,8 +308,8 @@ The library targets the tracking API contract (`Authorization: Bearer`,
 `page_url` / `referrer` / `user_agent` / `ip` on page views, SHA-256 hex
 identifier on identify, `GET /api/v1/account`). The browser tracker itself
 is served unchanged from `GET /api/v1/js`; the `js` handler only rewrites
-its `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}` placeholders to your own routes.
-See the [language libraries spec](../tracking-api.gaconnector.com/spec/05-language-libraries-proposal.md).
+its `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}` placeholders to absolute URLs on
+your proxy's own origin (so a cross-origin embed still posts here).
 
 ## Testing (contributors)
 

@@ -33,9 +33,13 @@ final class Proxy
 
     /**
      * `GET <basePath>/js` — serve the browser tracker with its endpoint
-     * placeholders rewritten to this integration's own routes. Degrades to
-     * an empty 200 script if the upstream script can't be fetched, so the
-     * page never breaks.
+     * placeholders rewritten to this integration's own routes as absolute
+     * URLs (scheme + host from the request). Absolute URLs keep the tracker
+     * posting to this proxy when the script is loaded cross-origin (e.g.
+     * a subdomain embedding the apex proxy, or GTM/consent-banner injection).
+     * Falls back to root-relative paths when the request URL has no origin.
+     * Degrades to an empty 200 script if the upstream script can't be
+     * fetched, so the page never breaks.
      */
     public function handleJs(Request $request): Response
     {
@@ -44,13 +48,50 @@ final class Proxy
             return Response::javascript('');
         }
 
+        $origin = $this->requestOrigin($request);
+        $pageviewUrl = $this->config->proxyUrl(self::ROUTE_PAGEVIEW);
+        $identifyUrl = $this->config->proxyUrl(self::ROUTE_IDENTIFY);
+        if ($origin !== '') {
+            $pageviewUrl = $origin . $pageviewUrl;
+            $identifyUrl = $origin . $identifyUrl;
+        }
+
         $script = str_replace(
             [self::PAGEVIEW_PLACEHOLDER, self::IDENTIFY_PLACEHOLDER],
-            [$this->config->proxyUrl(self::ROUTE_PAGEVIEW), $this->config->proxyUrl(self::ROUTE_IDENTIFY)],
+            [$pageviewUrl, $identifyUrl],
             $script,
         );
 
         return Response::javascript($script);
+    }
+
+    /**
+     * Scheme + host (and non-default port when present) from the request URL.
+     * Empty string when the URL has no usable origin (e.g. a bare path).
+     */
+    private function requestOrigin(Request $request): string
+    {
+        $parts = parse_url($request->url);
+        if (!is_array($parts)) {
+            return '';
+        }
+
+        $scheme = isset($parts['scheme']) ? strtolower((string) $parts['scheme']) : '';
+        $host = isset($parts['host']) ? (string) $parts['host'] : '';
+        if ($scheme === '' || $host === '') {
+            return '';
+        }
+
+        $origin = $scheme . '://' . $host;
+        if (isset($parts['port'])) {
+            $port = (int) $parts['port'];
+            $isDefault = ($scheme === 'https' && $port === 443) || ($scheme === 'http' && $port === 80);
+            if (!$isDefault) {
+                $origin .= ':' . $port;
+            }
+        }
+
+        return $origin;
     }
 
     /**
