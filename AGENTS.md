@@ -59,11 +59,11 @@ Two ways to use it, both landing on `Client`:
 use GaConnector\Tracking\GaConnector;
 
 // (a) Explicit client
-$client = GaConnector::create(['apiKey' => '...', 'basePath' => '/gac']);
+$client = GaConnector::create(['apiKey' => '...', 'baseUrl' => 'https://example.com/gac']);
 echo $client->html();
 
 // (b) Configure once (bootstrap), call statically anywhere
-GaConnector::configure(['apiKey' => '...', 'basePath' => '/gac']);
+GaConnector::configure(['apiKey' => '...', 'baseUrl' => 'https://example.com/gac']);
 echo GaConnector::html();                     // in a template
 GaConnector::serve();                         // in the /gac/* controller
 $account = GaConnector::verifyAccount($host); // install-time verification
@@ -91,7 +91,7 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 
 - The README must keep the **abstraction you integrate** framing: Composer
   install does not auto-instrument a site; the developer wires `html()` into
-  their layout and the proxy under their `basePath`. Contrast with the
+  their layout and the proxy under their `baseUrl`. Contrast with the
   WordPress plugin (which hooks the host for you).
 - Keep `examples/` to the single minimal `website/` demo. Do not grow it into
   framework starter kits or an iframe demo page.
@@ -127,17 +127,18 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 ### Design rules
 
 - **Config is immutable** and only built through `Config::fromArray()`, which validates
-  (`apiKey`, `basePath` required; `mode` ∈ `auto`/`consent`) and normalizes.
+  (`apiKey`, `baseUrl` required; `mode` ∈ `auto`/`consent`) and normalizes.
 - **Event sends are fire-and-forget**: `sendPageview` / `sendIdentify` swallow every
   failure (including no transport). Never let a tracking send throw to the caller.
 - **Account verification is not fire-and-forget**: it throws `NoHttpTransportException`
   when no transport exists and maps HTTP error statuses to `AccountVerificationException`.
 - **The `js` handler never breaks the page**: if the upstream script can't be fetched it
   returns an empty `200` script. It rewrites the `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}`
-  placeholders to absolute URLs on the proxy's own origin (scheme + host from the
-  request), falling back to root-relative paths when the request URL has no origin —
-  so a cross-origin embed (subdomain, GTM, consent banner) still posts to this proxy.
-  The tracker itself is served unchanged.
+  placeholders to absolute URLs under the configured `baseUrl`. The tracker itself is
+  served unchanged.
+- **`basePath` was removed in v2.** Use absolute `baseUrl` instead
+  (`https://example.com/gac`). Passing `basePath` or a path-only value throws a
+  `ConfigException`.
 - **The API key stays server-side.** It is attached as `Authorization: Bearer` inside the
   proxy/`TrackingApiClient` and must never be rendered into the page or exposed to the browser.
 - **The default bootstrap is cache-safe.** Nothing per-visitor is inlined unless the

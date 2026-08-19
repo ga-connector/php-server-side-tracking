@@ -14,8 +14,8 @@ use GaConnector\Tracking\Transport\HttpClient;
  * Build a client explicitly:
  *
  *     $client = GaConnector::create([
- *         'apiKey'   => getenv('GAC_API_KEY'),
- *         'basePath' => '/gac',
+ *         'apiKey'  => getenv('GAC_API_KEY'),
+ *         'baseUrl' => 'https://example.com/gac',
  *     ]);
  *     echo $client->html();
  *
@@ -23,8 +23,8 @@ use GaConnector\Tracking\Transport\HttpClient;
  * repeating the config:
  *
  *     GaConnector::configure([
- *         'apiKey'   => getenv('GAC_API_KEY'),
- *         'basePath' => '/gac',
+ *         'apiKey'  => getenv('GAC_API_KEY'),
+ *         'baseUrl' => 'https://example.com/gac',
  *     ]);
  *
  *     echo GaConnector::html();                     // in a template

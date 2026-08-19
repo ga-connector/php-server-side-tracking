@@ -25,7 +25,7 @@ final class GaConnectorTest extends TestCase
 
     public function testCreateReturnsClientWithoutStoringIt(): void
     {
-        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertInstanceOf(Client::class, $client);
         self::assertFalse(GaConnector::isConfigured());
@@ -50,7 +50,7 @@ final class GaConnectorTest extends TestCase
 
     public function testConfigureStoresSharedInstance(): void
     {
-        $returned = GaConnector::configure(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        $returned = GaConnector::configure(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertTrue(GaConnector::isConfigured());
         self::assertInstanceOf(Client::class, $returned);
@@ -59,7 +59,7 @@ final class GaConnectorTest extends TestCase
 
     public function testUseRegistersPrebuiltInstance(): void
     {
-        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         GaConnector::use($client);
 
@@ -68,14 +68,14 @@ final class GaConnectorTest extends TestCase
 
     public function testHtmlDelegatesToSharedInstance(): void
     {
-        GaConnector::configure(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        GaConnector::configure(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertStringContainsString('window.__gacSettings', GaConnector::html());
     }
 
     public function testSnippetsDelegateToSharedInstance(): void
     {
-        GaConnector::configure(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        GaConnector::configure(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertStringContainsString('window.__gacContext', GaConnector::contextScript());
         self::assertStringContainsString('window.__gacStatus', GaConnector::settingsScript());
@@ -85,7 +85,7 @@ final class GaConnectorTest extends TestCase
     {
         $body = '{"account_id":"acc_1","account_name":"Acme","email":"o@e.com","allowed_domains":["example.com"]}';
         GaConnector::configure(
-            ['apiKey' => 'gac_api_x', 'basePath' => '/gac'],
+            ['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac'],
             new StubTransport(new Response(200, $body))
         );
 
@@ -94,7 +94,7 @@ final class GaConnectorTest extends TestCase
 
     public function testResetClearsSharedInstance(): void
     {
-        GaConnector::configure(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        GaConnector::configure(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
         self::assertTrue(GaConnector::isConfigured());
 
         GaConnector::reset();

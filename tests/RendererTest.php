@@ -13,7 +13,7 @@ final class RendererTest extends TestCase
 {
     private function config(array $overrides = []): Config
     {
-        return Config::fromArray(array_merge(['apiKey' => 'gac_api_acc_secret', 'basePath' => '/gac'], $overrides));
+        return Config::fromArray(array_merge(['apiKey' => 'gac_api_acc_secret', 'baseUrl' => 'https://e.com/gac'], $overrides));
     }
 
     public function testEmitsSettingsAndAutoModeScriptTag(): void
@@ -24,7 +24,7 @@ final class RendererTest extends TestCase
         self::assertStringContainsString('"mode":"auto"', $rendered);
         self::assertStringContainsString('window.__gacStatus="script_pending"', $rendered);
         self::assertStringContainsString(
-            '<script src="/gac/js" async data-cfasync="false" data-no-optimize="1" data-no-defer="1"></script>',
+            '<script src="https://e.com/gac/js" async data-cfasync="false" data-no-optimize="1" data-no-defer="1"></script>',
             $rendered
         );
     }
@@ -108,7 +108,7 @@ final class RendererTest extends TestCase
         $rendered = (new Renderer($consent))->renderFromRequest(new Request('GET', 'https://e.com/'));
 
         self::assertStringContainsString('window.__gacStatus="awaiting_consent"', $rendered);
-        self::assertStringNotContainsString('<script src="/gac/js"', $rendered);
+        self::assertStringNotContainsString('<script src="https://e.com/gac/js"', $rendered);
         self::assertStringContainsString('/gac/js', (new Renderer($consent))->scriptTag());
     }
 
@@ -120,7 +120,7 @@ final class RendererTest extends TestCase
         self::assertStringNotContainsString("\n", $rendered);
         self::assertStringContainsString('<script>window.__gacContext={', $rendered);
         self::assertStringContainsString('</script><script>window.__gacSettings={', $rendered);
-        self::assertStringContainsString('</script><script src="/gac/js"', $rendered);
+        self::assertStringContainsString('</script><script src="https://e.com/gac/js"', $rendered);
     }
 
     public function testPrettyPrintsEachBlockOnItsOwnLineWhenDebugOn(): void

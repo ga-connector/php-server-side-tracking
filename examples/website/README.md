@@ -19,6 +19,7 @@ What this demo chooses (defaults unless noted):
 
 | Option | Demo value | Notes |
 | ------ | ---------- | ----- |
+| `baseUrl` | derived from the request (`{scheme}://{HTTP_HOST}/gac`) | Absolute; no hardcoded host. Optional `GAC_BASE_URL` override. |
 | `mode` | `auto` (default) | Script tag included in `html()` |
 | `iframeEnabled` | `true` (default, unset) | Iframe handling lives in the tracker JS, not in `app.php`. No framed demo page; `__gacStatus` shows `iframe` only if you load a page inside a frame. |
 | `inlineContext` | `true` | Safe here because nothing is cached |
@@ -65,6 +66,9 @@ Optional environment variables:
 - `GAC_API_KEY` — your key. The pages and the `GET /gac/js` fetch work without
   it, but page-view / identify events are only accepted upstream with a valid
   key. They are fire-and-forget, so a missing/invalid key never breaks a page.
+- `GAC_BASE_URL` — optional absolute public URL of the `/gac` mount. When unset,
+  the demo builds it from the current request (`scheme://HTTP_HOST/gac`), so
+  `php -S localhost:8080`, Apache, and nginx all work without extra config.
 
 ## What to check
 
@@ -85,7 +89,9 @@ Optional environment variables:
    (visible in the Network tab). The plaintext email never leaves the browser.
 5. **Proxy rewrite sanity.** `curl -s http://localhost:8080/gac/js | head` shows
    real JavaScript with the endpoint placeholders already rewritten to
-   `/gac/events/pageview` and `/gac/events/identify`.
+   `http://localhost:8080/gac/events/pageview` and
+   `http://localhost:8080/gac/events/identify` (absolute `baseUrl` built from
+   the request host).
 
 ## Run it under Apache
 
