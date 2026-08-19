@@ -8,8 +8,8 @@ use GaConnector\Tracking\Http\Request;
 use GaConnector\Tracking\Http\Response;
 
 /**
- * The three same-origin proxy handlers the customer mounts under their base
- * path. Each takes a framework-neutral {@see Request} and returns a
+ * The three proxy handlers the customer mounts under their base URL.
+ * Each takes a framework-neutral {@see Request} and returns a
  * {@see Response}. All event responses are `200` with an empty body
  * (fire-and-forget), matching the tracking API.
  */
@@ -32,33 +32,26 @@ final class Proxy
     }
 
     /**
-     * `GET <basePath>/js` — serve the browser tracker with its endpoint
-     * placeholders rewritten to this integration's own routes as absolute
-     * URLs (scheme + host from the request). Absolute URLs keep the tracker
-     * posting to this proxy when the script is loaded cross-origin (e.g.
-     * a subdomain embedding the apex proxy, or GTM/consent-banner injection).
-     * Falls back to root-relative paths when the request URL has no origin.
-     * Degrades to an empty 200 script if the upstream script can't be
-     * fetched, so the page never breaks.
+     * `GET <baseUrl>/js` — serve the browser tracker with its endpoint
+     * placeholders rewritten to absolute URLs under the configured
+     * {@see Config::$baseUrl}. Degrades to an empty 200 script if the
+     * upstream script can't be fetched, so the page never breaks.
      */
     public function handleJs(Request $request): Response
     {
+        unset($request);
+
         $script = $this->apiClient->fetchScript();
         if ($script === null) {
             return Response::javascript('');
         }
 
-        $origin = $this->requestOrigin($request);
-        $pageviewUrl = $this->config->proxyUrl(self::ROUTE_PAGEVIEW);
-        $identifyUrl = $this->config->proxyUrl(self::ROUTE_IDENTIFY);
-        if ($origin !== '') {
-            $pageviewUrl = $origin . $pageviewUrl;
-            $identifyUrl = $origin . $identifyUrl;
-        }
-
         $script = str_replace(
             [self::PAGEVIEW_PLACEHOLDER, self::IDENTIFY_PLACEHOLDER],
-            [$pageviewUrl, $identifyUrl],
+            [
+                $this->config->proxyUrl(self::ROUTE_PAGEVIEW),
+                $this->config->proxyUrl(self::ROUTE_IDENTIFY),
+            ],
             $script,
         );
 
@@ -66,36 +59,7 @@ final class Proxy
     }
 
     /**
-     * Scheme + host (and non-default port when present) from the request URL.
-     * Empty string when the URL has no usable origin (e.g. a bare path).
-     */
-    private function requestOrigin(Request $request): string
-    {
-        $parts = parse_url($request->url);
-        if (!is_array($parts)) {
-            return '';
-        }
-
-        $scheme = isset($parts['scheme']) ? strtolower((string) $parts['scheme']) : '';
-        $host = isset($parts['host']) ? (string) $parts['host'] : '';
-        if ($scheme === '' || $host === '') {
-            return '';
-        }
-
-        $origin = $scheme . '://' . $host;
-        if (isset($parts['port'])) {
-            $port = (int) $parts['port'];
-            $isDefault = ($scheme === 'https' && $port === 443) || ($scheme === 'http' && $port === 80);
-            if (!$isDefault) {
-                $origin .= ':' . $port;
-            }
-        }
-
-        return $origin;
-    }
-
-    /**
-     * `POST <basePath>/events/pageview` — enrich the body with the visitor's
+     * `POST <baseUrl>/events/pageview` — enrich the body with the visitor's
      * IP (authoritative server-side), attach the API key, forward.
      */
     public function handlePageview(Request $request): Response
@@ -109,7 +73,7 @@ final class Proxy
     }
 
     /**
-     * `POST <basePath>/events/identify` — forward the body unchanged (the
+     * `POST <baseUrl>/events/identify` — forward the body unchanged (the
      * email is already hashed in the browser), attach the API key.
      */
     public function handleIdentify(Request $request): Response
@@ -124,7 +88,7 @@ final class Proxy
     /**
      * Route a request to the right handler. `$route` (one of the ROUTE_*
      * constants) can be passed explicitly by a framework router, or left
-     * null to be derived from the request path relative to the base path.
+     * null to be derived from the request path relative to the base URL.
      */
     public function handle(Request $request, ?string $route = null): Response
     {
@@ -153,13 +117,13 @@ final class Proxy
 
     /**
      * Derive the route suffix from the request URL path relative to the
-     * configured base path. Returns null when nothing matches.
+     * configured base URL's path. Returns null when nothing matches.
      */
     public function resolveRoute(Request $request): ?string
     {
         $path = (string) (parse_url($request->url, PHP_URL_PATH) ?: '');
         $path = rtrim($path, '/');
-        $base = $this->config->basePath;
+        $base = $this->config->pathPrefix();
 
         if ($path === $base . '/' . self::ROUTE_PAGEVIEW) {
             return self::ROUTE_PAGEVIEW;

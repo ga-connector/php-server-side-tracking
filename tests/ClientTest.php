@@ -16,7 +16,7 @@ final class ClientTest extends TestCase
 {
     public function testExposesConfiguredCollaborators(): void
     {
-        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertInstanceOf(Renderer::class, $client->renderer());
         self::assertInstanceOf(Proxy::class, $client->proxy());
@@ -25,14 +25,14 @@ final class ClientTest extends TestCase
 
     public function testHtmlDelegatesToRenderer(): void
     {
-        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertStringContainsString('window.__gacSettings', $client->html());
     }
 
     public function testSnippetsDelegateToRenderer(): void
     {
-        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertStringContainsString('window.__gacContext', $client->contextScript());
         self::assertStringContainsString('window.__gacStatus', $client->settingsScript());
@@ -40,7 +40,7 @@ final class ClientTest extends TestCase
 
     public function testScriptTagDelegatesToRenderer(): void
     {
-        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'basePath' => '/gac']);
+        $client = GaConnector::create(['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac']);
 
         self::assertStringContainsString('/gac/js', $client->scriptTag());
     }
@@ -49,7 +49,7 @@ final class ClientTest extends TestCase
     {
         $body = '{"account_id":"acc_1","account_name":"Acme","email":"o@e.com","allowed_domains":["example.com"]}';
         $client = GaConnector::create(
-            ['apiKey' => 'gac_api_x', 'basePath' => '/gac'],
+            ['apiKey' => 'gac_api_x', 'baseUrl' => 'https://e.com/gac'],
             new StubTransport(new Response(200, $body))
         );
 

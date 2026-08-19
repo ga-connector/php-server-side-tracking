@@ -19,7 +19,7 @@ final class TrackingApiClientTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->config = Config::fromArray(['apiKey' => 'gac_api_acc_secret', 'basePath' => '/gac']);
+        $this->config = Config::fromArray(['apiKey' => 'gac_api_acc_secret', 'baseUrl' => 'https://e.com/gac']);
     }
 
     public function testVerifyAccountDecodesSuccessfulResponse(): void
@@ -70,7 +70,7 @@ final class TrackingApiClientTest extends TestCase
 
     public function testSurfacesValidationIssuesInDebugMode(): void
     {
-        $debugConfig = Config::fromArray(['apiKey' => 'k', 'basePath' => '/gac', 'debug' => true]);
+        $debugConfig = Config::fromArray(['apiKey' => 'k', 'baseUrl' => 'https://e.com/gac', 'debug' => true]);
         $body = '{"error":"validation failed","issues":[{"code":"x"}]}';
         $client = new TrackingApiClient($debugConfig, new StubTransport(new Response(400, $body)));
 

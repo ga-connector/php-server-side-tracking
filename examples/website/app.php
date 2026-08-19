@@ -19,6 +19,10 @@
  *   GAC_API_KEY       your gac_api_<accountId>_<secret> key (required for the
  *                     event proxies to be accepted upstream; the page and the
  *                     /gac/js fetch work without it).
+ *
+ * baseUrl is derived from the current request (scheme + host + /gac) so the
+ * built-in server, Apache, and nginx all work without extra config. Optional
+ * GAC_BASE_URL overrides that when you need a fixed public URL.
  */
 
 declare(strict_types=1);
@@ -28,6 +32,27 @@ require __DIR__ . '/../../vendor/autoload.php';
 use GaConnector\Tracking\Exception\AccountVerificationException;
 use GaConnector\Tracking\Exception\NoHttpTransportException;
 use GaConnector\Tracking\GaConnector;
+
+/**
+ * Absolute public URL of the /gac proxy mount for this request, e.g.
+ * http://localhost:8080/gac. Honors X-Forwarded-Proto when present.
+ */
+function demo_base_url(): string
+{
+    $override = getenv('GAC_BASE_URL');
+    if (is_string($override) && trim($override) !== '') {
+        return rtrim(trim($override), '/');
+    }
+
+    $https = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '' && strtolower((string) $_SERVER['HTTPS']) !== 'off';
+    $forwardedProto = isset($_SERVER['HTTP_X_FORWARDED_PROTO'])
+        ? strtolower(trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_PROTO'])[0]))
+        : '';
+    $scheme = $forwardedProto !== '' ? $forwardedProto : ($https ? 'https' : 'http');
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost');
+
+    return $scheme . '://' . $host . '/gac';
+}
 
 /**
  * Configure the shared GA Connector client once. Safe to call repeatedly.
@@ -42,7 +67,7 @@ function boot_gac(): void
 
     GaConnector::configure([
         'apiKey' => getenv('GAC_API_KEY') ?: 'gac_api_REPLACE_ME',
-        'basePath' => '/gac',
+        'baseUrl' => demo_base_url(),
         'debug' => true,
         // Off by default because it makes pages uncacheable; safe here since
         // this demo renders every request fresh.

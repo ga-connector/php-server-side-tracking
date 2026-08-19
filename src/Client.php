@@ -13,8 +13,8 @@ use GaConnector\Tracking\Transport\HttpClient;
  * {@see GaConnector} facade once and let it hold a shared instance):
  *
  *     $client = GaConnector::create([
- *         'apiKey'   => getenv('GAC_API_KEY'),
- *         'basePath' => '/gac',
+ *         'apiKey'  => getenv('GAC_API_KEY'),
+ *         'baseUrl' => 'https://example.com/gac',
  *     ]);
  *
  *     echo $client->html();                    // in your template

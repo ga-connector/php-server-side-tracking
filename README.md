@@ -23,7 +23,7 @@ abstraction you place in **your** app:
 
 - You choose which HTML pages get the bootstrap (usually a shared layout).
 - You choose where the proxy routes live (front controller, framework
-  router, or rewrite) under your `basePath`.
+  router, or rewrite) under your `baseUrl`.
 - Templates, routing, consent banners, and caching stay yours.
 
 The library only renders snippets and proxies the three endpoints with the
@@ -60,13 +60,13 @@ On each request, decide which of these apply:
 | Responsibility | When | Call |
 | -------------- | ---- | ---- |
 | Bootstrap in HTML | Every HTML page you want tracked | `html()` (or the composed snippets) in your shared layout — `<head>` or before `</body>`. Not on API-only responses. |
-| Proxy under `basePath` | Every request under that URL prefix | `serve()` or the individual handlers (`js`, `events/pageview`, `events/identify`), wherever your app already routes. |
+| Proxy under `baseUrl` | Every request under that URL prefix | `serve()` or the individual handlers (`js`, `events/pageview`, `events/identify`), wherever your app already routes. |
 | Account check | Install / admin / setup only | `verifyAccount()`. Not on the visitor path. |
 | Configure once | App bootstrap | `GaConnector::create(...)` or `GaConnector::configure(...)`. |
 
 ```text
 Incoming request
-  ├─ path under basePath?  →  serve() / proxy handlers
+  ├─ path under baseUrl?  →  serve() / proxy handlers
   └─ otherwise
        ├─ HTML page to track?  →  html() in layout
        ├─ admin / setup?       →  verifyAccount() (optional)
@@ -80,7 +80,7 @@ use GaConnector\Tracking\GaConnector;
 
 $gac = GaConnector::create([
     'apiKey'   => getenv('GAC_API_KEY'),   // gac_api_<accountId>_<secret>
-    'basePath' => '/gac',                   // where you mount the proxy routes
+    'baseUrl' => 'https://example.com/gac', // absolute public URL of the proxy mount
     // optional:
     // 'mode'            => 'auto',         // 'auto' (default) or 'consent'
     // 'debug'           => false,
@@ -136,7 +136,7 @@ mode), so composing by hand costs you nothing.
 
 ### 2. Mount the proxy routes
 
-Point every request under your `basePath` at the proxy. With a front
+Point every request under your `baseUrl` at the proxy. With a front
 controller (e.g. `public/gac.php` mapped to `/gac/*`):
 
 ```php
@@ -211,7 +211,7 @@ use GaConnector\Tracking\GaConnector;
 // bootstrap (once):
 GaConnector::configure([
     'apiKey'   => getenv('GAC_API_KEY'),
-    'basePath' => '/gac',
+    'baseUrl' => 'https://example.com/gac',
 ]);
 
 // anywhere after:
@@ -286,7 +286,7 @@ implementation** — a hand-rolled multi-page site that shows one way to call
 other framework.
 
 Copy the two integration points (bootstrap in the layout, proxy under
-`basePath`); put them where **your** app already owns layout and routing.
+`baseUrl`); put them where **your** app already owns layout and routing.
 See its [README](examples/website/README.md) for how to run it locally
 (`GAC_API_KEY=... php -S localhost:8080 examples/website/router.php`).
 
@@ -295,7 +295,7 @@ See its [README](examples/website/README.md) for how to run it locally
 | Option             | Required | Default                          | Notes                                                                 |
 | ------------------ | -------- | -------------------------------- | --------------------------------------------------------------------- |
 | `apiKey`           | yes      | —                                | `gac_api_<accountId>_<secret>`; sent as a Bearer token                |
-| `basePath`         | yes      | —                                | URL prefix your proxy routes are mounted under, e.g. `/gac`           |
+| `baseUrl`          | yes      | —                                | Absolute public URL of the proxy mount, e.g. `https://example.com/gac` (must include a path). |
 | `mode`             | no       | `auto`                           | `auto` includes the script tag; `consent` omits it (you inject via GTM / consent banner). Not related to iframes. |
 | `debug`            | no       | `false`                          | Emits `__gacSettings.debug`                                           |
 | `iframeEnabled`    | no       | `true`                           | Tracker cross-frame messaging; on by default. Set `false` only to disable messaging. In-frame page-view suppression is always automatic. |
@@ -308,8 +308,8 @@ The library targets the tracking API contract (`Authorization: Bearer`,
 `page_url` / `referrer` / `user_agent` / `ip` on page views, SHA-256 hex
 identifier on identify, `GET /api/v1/account`). The browser tracker itself
 is served unchanged from `GET /api/v1/js`; the `js` handler only rewrites
-its `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}` placeholders to absolute URLs on
-your proxy's own origin (so a cross-origin embed still posts here).
+its `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}` placeholders to absolute URLs
+under your configured `baseUrl`.
 
 ## Testing (contributors)
 
