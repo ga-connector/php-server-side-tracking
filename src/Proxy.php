@@ -34,12 +34,13 @@ final class Proxy
     /**
      * `GET <basePath>/js` — serve the browser tracker with its endpoint
      * placeholders rewritten to this integration's own routes as absolute
-     * URLs (scheme + host from the request). Absolute URLs keep the tracker
-     * posting to this proxy when the script is loaded cross-origin (e.g.
-     * a subdomain embedding the apex proxy, or GTM/consent-banner injection).
-     * Falls back to root-relative paths when the request URL has no origin.
-     * Degrades to an empty 200 script if the upstream script can't be
-     * fetched, so the page never breaks.
+     * HTTPS URLs (host from the request; scheme always https, since reverse
+     * proxies often terminate TLS and present the backend as http). Absolute
+     * URLs keep the tracker posting to this proxy when the script is loaded
+     * cross-origin (e.g. a subdomain embedding the apex proxy, or
+     * GTM/consent-banner injection). Falls back to root-relative paths when
+     * the request URL has no host. Degrades to an empty 200 script if the
+     * upstream script can't be fetched, so the page never breaks.
      */
     public function handleJs(Request $request): Response
     {
@@ -67,7 +68,11 @@ final class Proxy
 
     /**
      * Scheme + host (and non-default port when present) from the request URL.
-     * Empty string when the URL has no usable origin (e.g. a bare path).
+     * Empty string when the URL has no usable host (e.g. a bare path).
+     *
+     * Always uses `https`: reverse proxies typically terminate TLS and present
+     * the backend request as `http`, which would bake insecure absolute URLs
+     * into the tracker script.
      */
     private function requestOrigin(Request $request): string
     {
@@ -76,17 +81,16 @@ final class Proxy
             return '';
         }
 
-        $scheme = isset($parts['scheme']) ? strtolower((string) $parts['scheme']) : '';
         $host = isset($parts['host']) ? (string) $parts['host'] : '';
-        if ($scheme === '' || $host === '') {
+        if ($host === '') {
             return '';
         }
 
-        $origin = $scheme . '://' . $host;
+        $origin = 'https://' . $host;
         if (isset($parts['port'])) {
             $port = (int) $parts['port'];
-            $isDefault = ($scheme === 'https' && $port === 443) || ($scheme === 'http' && $port === 80);
-            if (!$isDefault) {
+            // Drop 443 (https default) and 80 (typical reverse-proxy http port).
+            if ($port !== 443 && $port !== 80) {
                 $origin .= ':' . $port;
             }
         }

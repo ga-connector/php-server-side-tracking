@@ -54,6 +54,20 @@ final class ProxyTest extends TestCase
         self::assertStringNotContainsString('track.gaconnector.com', $response->body);
     }
 
+    public function testHandleJsForcesHttpsWhenRequestIsHttpBehindReverseProxy(): void
+    {
+        // TLS terminates at the reverse proxy, so the backend sees http://.
+        // Absolute endpoint URLs must still be https:// for the browser.
+        $script = "var P='{{PAGEVIEW_URL}}';var I='{{IDENTIFY_URL}}';";
+        $proxy = new Proxy($this->config, new TrackingApiClient($this->config, new StubTransport(new Response(200, $script))));
+
+        $response = $proxy->handleJs(new Request('GET', 'http://gaconnector.com/gac/js'));
+
+        self::assertStringContainsString("var P='https://gaconnector.com/gac/events/pageview';", $response->body);
+        self::assertStringContainsString("var I='https://gaconnector.com/gac/events/identify';", $response->body);
+        self::assertStringNotContainsString('http://gaconnector.com', $response->body);
+    }
+
     public function testHandleJsFallsBackToRelativeUrlsWhenRequestHasNoOrigin(): void
     {
         $script = "var P='{{PAGEVIEW_URL}}';var I='{{IDENTIFY_URL}}';";
