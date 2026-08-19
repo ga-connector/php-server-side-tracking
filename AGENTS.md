@@ -133,8 +133,11 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 - **Account verification is not fire-and-forget**: it throws `NoHttpTransportException`
   when no transport exists and maps HTTP error statuses to `AccountVerificationException`.
 - **The `js` handler never breaks the page**: if the upstream script can't be fetched it
-  returns an empty `200` script. It only rewrites the `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}`
-  placeholders to the customer's own proxy routes — the tracker itself is served unchanged.
+  returns an empty `200` script. It rewrites the `{{PAGEVIEW_URL}}` / `{{IDENTIFY_URL}}`
+  placeholders to absolute URLs on the proxy's own origin (scheme + host from the
+  request), falling back to root-relative paths when the request URL has no origin —
+  so a cross-origin embed (subdomain, GTM, consent banner) still posts to this proxy.
+  The tracker itself is served unchanged.
 - **The API key stays server-side.** It is attached as `Authorization: Bearer` inside the
   proxy/`TrackingApiClient` and must never be rendered into the page or exposed to the browser.
 - **The default bootstrap is cache-safe.** Nothing per-visitor is inlined unless the

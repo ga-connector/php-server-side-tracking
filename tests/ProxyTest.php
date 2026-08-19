@@ -28,10 +28,41 @@ final class ProxyTest extends TestCase
 
         $response = $proxy->handleJs(new Request('GET', 'https://e.com/gac/js'));
 
-        self::assertStringContainsString("var P='/gac/events/pageview';", $response->body);
-        self::assertStringContainsString("var I='/gac/events/identify';", $response->body);
+        self::assertStringContainsString("var P='https://e.com/gac/events/pageview';", $response->body);
+        self::assertStringContainsString("var I='https://e.com/gac/events/identify';", $response->body);
         self::assertStringNotContainsString('{{PAGEVIEW_URL}}', $response->body);
         self::assertSame('text/javascript; charset=utf-8', $response->headers['Content-Type']);
+    }
+
+    public function testHandleJsSubstitutesAbsoluteUrlsOnProxyOriginForCrossOriginEmbeds(): void
+    {
+        // Cross-origin embed (e.g. app.gaconnector.com loading gaconnector.com/_ping/js):
+        // endpoints must be absolute on the proxy host so the browser does not
+        // resolve them against the embedding page.
+        $config = Config::fromArray([
+            'apiKey' => 'gac_api_acc_secret',
+            'basePath' => '/_ping',
+            'apiBaseUrl' => 'https://track.gaconnector.com',
+        ]);
+        $script = "var P='{{PAGEVIEW_URL}}';var I='{{IDENTIFY_URL}}';";
+        $proxy = new Proxy($config, new TrackingApiClient($config, new StubTransport(new Response(200, $script))));
+
+        $response = $proxy->handleJs(new Request('GET', 'https://gaconnector.com/_ping/js'));
+
+        self::assertStringContainsString("var P='https://gaconnector.com/_ping/events/pageview';", $response->body);
+        self::assertStringContainsString("var I='https://gaconnector.com/_ping/events/identify';", $response->body);
+        self::assertStringNotContainsString('track.gaconnector.com', $response->body);
+    }
+
+    public function testHandleJsFallsBackToRelativeUrlsWhenRequestHasNoOrigin(): void
+    {
+        $script = "var P='{{PAGEVIEW_URL}}';var I='{{IDENTIFY_URL}}';";
+        $proxy = new Proxy($this->config, new TrackingApiClient($this->config, new StubTransport(new Response(200, $script))));
+
+        $response = $proxy->handleJs(new Request('GET', '/gac/js'));
+
+        self::assertStringContainsString("var P='/gac/events/pageview';", $response->body);
+        self::assertStringContainsString("var I='/gac/events/identify';", $response->body);
     }
 
     public function testHandleJsDegradesToEmptyBodyWhenScriptUnavailable(): void
