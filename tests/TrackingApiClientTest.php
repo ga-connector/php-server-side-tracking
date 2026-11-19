@@ -119,11 +119,14 @@ final class TrackingApiClientTest extends TestCase
         $ref = new ReflectionClass(TrackingApiClient::class);
 
         $transport = $ref->getProperty('transport');
-        $transport->setAccessible(true);
-        $transport->setValue($client, null);
-
         $resolved = $ref->getProperty('transportResolved');
-        $resolved->setAccessible(true);
+        // Needed before PHP 8.1, and deprecated since PHP 8.5.
+        if (PHP_VERSION_ID < 80100) {
+            $transport->setAccessible(true);
+            $resolved->setAccessible(true);
+        }
+
+        $transport->setValue($client, null);
         $resolved->setValue($client, true);
 
         return $client;
