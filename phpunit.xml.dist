@@ -5,6 +5,7 @@
          colors="true"
          failOnRisky="true"
          failOnWarning="true"
+         convertDeprecationsToExceptions="true"
          beStrictAboutTestsThatDoNotTestAnything="true"
          cacheResultFile=".phpunit.result.cache">
     <testsuites>

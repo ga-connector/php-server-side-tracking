@@ -12,9 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Test the lowest supported version and a current one so the
-        # PHP 7.4 compatibility can't silently regress.
-        php: ['7.4', '8.3']
+        # Every supported version, 7.4 to the newest. phpunit.xml.dist turns
+        # deprecations into errors, so a newly deprecated call fails here.
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
 
     steps:
       - uses: actions/checkout@v4

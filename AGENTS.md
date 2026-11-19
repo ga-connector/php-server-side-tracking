@@ -161,8 +161,9 @@ $account = GaConnector::verifyAccount($host); // install-time verification
 
 ## CI / releases
 
-- `.github/workflows/ci.yml` (`CI`) runs the suite on PHP **7.4** and **8.3** so the
-  minimum-version compatibility can't silently regress.
+- `.github/workflows/ci.yml` (`CI`) runs the suite on every PHP version from **7.4** to **8.5**.
+  `phpunit.xml.dist` turns deprecation notices into test errors, so a function a new PHP
+  release deprecates fails CI instead of reaching customers as log noise.
 - After the matrix passes on a push to `main`/`master`, the `tag` job runs
   `mathieudutour/github-tag-action@v6.2` to compute the next semver from
   [Conventional Commits](https://www.conventionalcommits.org/) and push a `vX.Y.Z` tag

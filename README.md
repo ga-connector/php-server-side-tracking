@@ -327,8 +327,8 @@ composer test      # runs vendor/bin/phpunit
 
 PHPUnit is pinned to `^9.6`, the newest line that still runs on the PHP 7.4
 floor as well as current PHP. CI (`.github/workflows/ci.yml`) runs the suite
-on PHP 7.4 and 8.3 so the minimum-version compatibility can't silently
-regress.
+on every PHP version from 7.4 to 8.5, and any deprecation notice fails it, so
+neither the minimum version nor the newest one can silently regress.
 
 ## Releasing (maintainers)
 
