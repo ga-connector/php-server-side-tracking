@@ -58,7 +58,10 @@ final class TransportTest extends TestCase
     private function socketMethod(string $name): \ReflectionMethod
     {
         $method = (new ReflectionClass(SocketClient::class))->getMethod($name);
-        $method->setAccessible(true);
+        // Needed before PHP 8.1, and deprecated since PHP 8.5.
+        if (PHP_VERSION_ID < 80100) {
+            $method->setAccessible(true);
+        }
 
         return $method;
     }
