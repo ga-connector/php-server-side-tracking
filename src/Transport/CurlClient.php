@@ -67,14 +67,28 @@ final class CurlClient implements HttpClient
 
         $result = curl_exec($handle);
         if ($result === false) {
-            curl_close($handle);
+            self::close($handle);
 
             return null;
         }
 
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        curl_close($handle);
+        self::close($handle);
 
         return new Response($status, is_string($result) ? $result : '');
+    }
+
+    /**
+     * Close the handle on PHP 7.4, the only supported version where
+     * curl_close() still does anything. Since PHP 8.0 the handle is an object
+     * that is freed when it goes out of scope, and PHP 8.5 deprecates the call.
+     *
+     * @param resource|\CurlHandle $handle
+     */
+    private static function close($handle): void
+    {
+        if (PHP_VERSION_ID < 80000) {
+            curl_close($handle);
+        }
     }
 }
